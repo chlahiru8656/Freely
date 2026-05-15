@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'home_screen.dart';
 import 'status_feed_screen.dart';
+import '../services/auth_service.dart';
+import '../services/database_service.dart';
+import 'profile_setup_screen.dart';
 
 class MainLayoutScreen extends StatefulWidget {
   const MainLayoutScreen({super.key});
@@ -15,8 +18,32 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
   final List<Widget> _screens = [
     const HomeScreen(), // The Dashboard
     const StatusFeedScreen(), // The Highlights
-    const Center(child: Text("Profile - Coming Soon")),
+    Center(
+      child: ElevatedButton(
+        onPressed: () => AuthService.signOut(),
+        child: const Text('Sign Out'),
+      ),
+    ),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _checkProfile();
+  }
+
+  void _checkProfile() async {
+    final firebaseUser = AuthService.currentUser;
+    if (firebaseUser != null) {
+      final userProfile = await DatabaseService.getUser(firebaseUser.uid);
+      if (userProfile == null && mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const ProfileSetupScreen()),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

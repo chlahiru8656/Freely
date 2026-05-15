@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/app_models.dart';
+import '../services/auth_service.dart';
+import '../services/database_service.dart';
 import 'chat_screen.dart';
 import '../theme/app_theme.dart';
 
@@ -8,19 +10,25 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final userGroups = MockData.groups.where((g) => g.memberIds.contains(MockData.currentUser?.id)).toList();
+    final currentUserId = AuthService.currentUser?.uid;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Dashboard', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24)),
         actions: [
           IconButton(icon: const Icon(Icons.search), onPressed: () {}),
-          IconButton(
-            icon: CircleAvatar(
-              backgroundImage: NetworkImage(MockData.currentUser?.avatarUrl ?? ''),
-              radius: 16,
-            ),
-            onPressed: () {},
+          StreamBuilder<User?>(
+            stream: currentUserId != null ? DatabaseService.getUser(currentUserId).asStream() : Stream.value(null),
+            builder: (context, snapshot) {
+              final user = snapshot.data;
+              return IconButton(
+                icon: CircleAvatar(
+                  backgroundImage: NetworkImage(user?.avatarUrl ?? 'https://i.pravatar.cc/150'),
+                  radius: 16,
+                ),
+                onPressed: () {},
+              );
+            }
           ),
           const SizedBox(width: 8),
         ],
@@ -50,21 +58,30 @@ class HomeScreen extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 16),
-              GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 16,
-                  mainAxisSpacing: 16,
-                  childAspectRatio: 0.85,
-                ),
-                itemCount: userGroups.length,
-                itemBuilder: (context, index) {
-                  final group = userGroups[index];
-                  return _buildProjectCard(context, group);
-                },
-              )
+              if (currentUserId != null)
+                StreamBuilder<List<ProjectGroup>>(
+                  stream: DatabaseService.streamUserGroups(currentUserId),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                      return const Text("No active projects yet.");
+                    }
+                    
+                    final userGroups = snapshot.data!;
+                    return ListView.separated(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: userGroups.length,
+                      separatorBuilder: (context, index) => const Divider(height: 1, indent: 72),
+                      itemBuilder: (context, index) {
+                        final group = userGroups[index];
+                        return _buildChatRow(context, group);
+                      },
+                    );
+                  }
+                )
             ],
           ),
         ),
@@ -89,46 +106,69 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildProjectCard(BuildContext context, ProjectGroup group) {
-    return GestureDetector(
+  Widget _buildChatRow(BuildContext context, ProjectGroup group) {
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(vertical: 8, horizontal: 0),
       onTap: () {
         Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => ChatScreen(group: group)),
         );
       },
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AppTheme.primaryColor.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(Icons.folder, color: AppTheme.primaryColor),
-              ),
-              const Spacer(),
-              Text(
-                group.name,
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  const Icon(Icons.group, size: 14, color: Colors.grey),
-                  const SizedBox(width: 4),
-                  Text("${group.memberIds.length} Members", style: const TextStyle(color: Colors.grey, fontSize: 12)),
-                ],
-              )
-            ],
+      leading: Stack(
+        children: [
+          CircleAvatar(
+            radius: 28,
+            backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.2),
+            child: const Icon(Icons.group, color: AppTheme.primaryColor, size: 28),
           ),
+          Positioned(
+            right: 0,
+            bottom: 0,
+            child: Container(
+              padding: const EdgeInsets.all(2),
+              decoration: BoxDecoration(
+                color: Theme.of(context).scaffoldBackgroundColor,
+                shape: BoxShape.circle,
+              ),
+              child: const CircleAvatar(
+                radius: 6,
+                backgroundColor: Colors.green,
+              ),
+            ),
+          )
+        ],
+      ),
+      title: Text(
+        group.name,
+        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+      subtitle: Padding(
+        padding: const EdgeInsets.only(top: 4.0),
+        child: Text(
+          "${group.memberIds.length} Members • Tap to chat",
+          style: TextStyle(color: Colors.white54, fontSize: 14),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
+      ),
+      trailing: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Text("Now", style: TextStyle(color: Colors.white54, fontSize: 12)),
+          const SizedBox(height: 6),
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: const BoxDecoration(
+              color: AppTheme.primaryColor,
+              shape: BoxShape.circle,
+            ),
+            child: const Text("1", style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+          ),
+        ],
       ),
     );
   }
