@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "157328186942",
+    "project_id": "freely-3ae6f",
+    "storage_bucket": "freely-3ae6f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:157328186942:android:ac4bfebc350b8a22657b6f",
+        "android_client_info": {
+          "package_name": "com.example.freely"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAvYuWqwocLoSFz04Wm-U1_IeErEFu4Imc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
